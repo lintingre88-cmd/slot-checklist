@@ -97,7 +97,7 @@ window.openM=function(enc){
   let html='';
   groups.forEach(g=>{
     totalItems+=g.items.length;
-    const rows=g.items.map(it=>`<div class="row done-v"><label class="rowck"><input type="checkbox" class="ick" checked><span class="k">${esc(it[0])}</span></label><input class="ve" value="${escAttr(it[1])}"></div>`).join('');
+    const rows=g.items.map(it=>`<div class="row done-v"><label class="rowck"><input type="checkbox" class="ick" checked><span class="k">${esc(it[0])}</span></label><input class="ve" value="${escAttr(it[1])}" onfocus="this.select()"></div>`).join('');
     html+=`<div class="card"><div class="chead"><span class="dot"></span><span class="nm">${esc(g.group)}</span><span class="cnt"><b class="gc">0</b>/${g.items.length}</span><span class="chev">▶</span></div><div class="cbody">${rows}</div></div>`;
   });
   // 通用區塊
@@ -132,6 +132,8 @@ window.openM=function(enc){
 function mk(id,arr){document.getElementById(id).innerHTML=arr.map(t=>`<div class="toggle"><span>${esc(t)}</span><label class="sw"><input type="checkbox" checked><span></span></label></div>`).join('')}
 function prog(){const d=document.querySelectorAll('#sheet .ick:checked').length;document.getElementById('bar').style.width=(totalItems?d/totalItems*100:0)+'%';ptxt.textContent=`已核對 ${d} / ${totalItems} 項`}
 back.addEventListener('click',home);
+// 點進設定值欄位時，自動選取整段（直接打字即覆蓋，免先刪）
+document.addEventListener('focusin',e=>{const t=e.target;if(t&&t.classList&&t.classList.contains('ve')){setTimeout(()=>{try{t.select()}catch(_){}} ,0);}});
 // 簽名
 let ctx,drawing,px,py;
 function initSig(){const c=document.getElementById('sig');const r=c.getBoundingClientRect();c.width=r.width*2;c.height=r.height*2;ctx=c.getContext('2d');ctx.scale(2,2);ctx.lineWidth=2.5;ctx.lineCap='round';ctx.strokeStyle='#111';
