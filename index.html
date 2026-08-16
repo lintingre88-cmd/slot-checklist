@@ -129,7 +129,7 @@ window.openM=function(enc){
   document.querySelectorAll('#siteType button').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('#siteType button').forEach(x=>x.classList.remove('on'));b.classList.add('on')}));
   initSig(); prog(); window.scrollTo(0,0);
 };
-function mk(id,arr){document.getElementById(id).innerHTML=arr.map(t=>`<div class="toggle"><span>${esc(t)}</span><label class="sw"><input type="checkbox"><span></span></label></div>`).join('')}
+function mk(id,arr){document.getElementById(id).innerHTML=arr.map(t=>`<div class="toggle"><span>${esc(t)}</span><label class="sw"><input type="checkbox" checked><span></span></label></div>`).join('')}
 function prog(){const d=document.querySelectorAll('#sheet .ick:checked').length;document.getElementById('bar').style.width=(totalItems?d/totalItems*100:0)+'%';ptxt.textContent=`已核對 ${d} / ${totalItems} 項`}
 back.addEventListener('click',home);
 // 簽名
