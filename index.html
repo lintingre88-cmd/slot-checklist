@@ -97,7 +97,7 @@ window.openM=function(enc){
   let html='';
   groups.forEach(g=>{
     totalItems+=g.items.length;
-    const rows=g.items.map(it=>`<div class="row"><label class="rowck"><input type="checkbox" class="ick"><span class="k">${esc(it[0])}</span></label><input class="ve" value="${escAttr(it[1])}"></div>`).join('');
+    const rows=g.items.map(it=>`<div class="row done-v"><label class="rowck"><input type="checkbox" class="ick" checked><span class="k">${esc(it[0])}</span></label><input class="ve" value="${escAttr(it[1])}"></div>`).join('');
     html+=`<div class="card"><div class="chead"><span class="dot"></span><span class="nm">${esc(g.group)}</span><span class="cnt"><b class="gc">0</b>/${g.items.length}</span><span class="chev">▶</span></div><div class="cbody">${rows}</div></div>`;
   });
   // 通用區塊
@@ -121,6 +121,9 @@ window.openM=function(enc){
       const bx=c.querySelectorAll('.ick'),d=[...bx].filter(b=>b.checked).length;
       c.querySelector('.gc').textContent=d; c.classList.toggle('done',d===bx.length); prog();
     }));
+    // 預設全部打勾：同步群組計數與完成狀態
+    const bx=c.querySelectorAll('.ick'),d=[...bx].filter(b=>b.checked).length;
+    c.querySelector('.gc').textContent=d; c.classList.toggle('done',d===bx.length);
   });
   mk('confirmCol',["機台是否有貼商檢","主板是否有貼軟貼"]); mk('preLaunch',PRE);
   document.querySelectorAll('#siteType button').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('#siteType button').forEach(x=>x.classList.remove('on'));b.classList.add('on')}));
