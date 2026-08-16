@@ -25,10 +25,14 @@
  .dot{width:12px;height:12px;border-radius:50%;background:#475569;flex:0 0 auto}.card.done .dot{background:var(--ok)}
  .card.done .chead .nm::before{content:"✓ ";color:var(--ok)}
  .cbody{display:none;padding:0 14px 12px}.card.open .cbody{display:block}
- .row{display:flex;align-items:center;gap:10px;padding:11px 2px;border-top:1px dashed #2b3a52;font-size:15px;cursor:pointer}
+ .row{display:flex;align-items:center;gap:8px;padding:9px 2px;border-top:1px dashed #2b3a52;font-size:15px}
+ .rowck{display:flex;align-items:center;gap:10px;flex:1;min-width:0;cursor:pointer}
  .row .ick{width:24px;height:24px;flex:0 0 auto;accent-color:var(--ok)}
- .row .k{flex:1;color:var(--sub)}.row .v{font-weight:600;text-align:right;max-width:52%}
- .row input:checked~.k{color:var(--txt)}.row input:checked~.v{color:var(--ok)}
+ .rowck .k{flex:1;color:var(--sub);word-break:break-word}
+ .rowck input:checked~.k{color:var(--txt)}
+ .ve{width:46%;flex:0 0 auto;text-align:right;font-weight:600;padding:8px 9px;border:1px solid var(--line);border-radius:8px;background:#0b1220;color:var(--txt);font-size:14px}
+ .ve:focus{outline:none;border-color:var(--accent)}
+ .row.done-v .ve{border-color:var(--ok);color:var(--ok)}
  .sec{margin:22px 4px 8px;font-size:15px;font-weight:700;color:var(--warn)}
  .toggle{display:flex;align-items:center;justify-content:space-between;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:8px}
  .sw{position:relative;width:52px;height:30px;flex:0 0 auto}.sw input{display:none}
@@ -46,6 +50,21 @@
  .bottom button{flex:1;padding:15px;border:0;border-radius:12px;font-size:17px;font-weight:700}
  #save{background:var(--ok);color:#053}
  .hide{display:none}
+ /* 匯出用：白底黑框表格（比照原本檢查表） */
+ .psheet{position:fixed;left:-10000px;top:0;width:760px;background:#fff;color:#000;font-family:"Microsoft JhengHei",system-ui,sans-serif;padding:20px}
+ .psheet h2{text-align:center;margin:0 0 12px;font-size:22px}
+ .psheet table{border-collapse:collapse;width:100%}
+ .psheet .meta{margin-bottom:10px;font-size:13px}
+ .psheet .meta td{border:1px solid #000;padding:6px 8px}
+ .psheet .meta .lbl{background:#f0f0f0;font-weight:700;white-space:nowrap;width:1%}
+ .psheet .grid{font-size:13px}
+ .psheet .grid th,.psheet .grid td{border:1px solid #000;padding:6px 8px;vertical-align:middle}
+ .psheet .grid th{background:#e6e6e6}
+ .psheet .grid .ck{text-align:center;width:36px;font-weight:700;font-size:15px}
+ .psheet .grid .gp{background:#f6f6f6;font-weight:700;white-space:nowrap}
+ .psheet .grid .vv{text-align:right;white-space:pre-wrap;word-break:break-word}
+ .psheet .sig{margin-top:14px}
+ .psheet .sig img{border:1px solid #000;width:320px;height:auto;background:#fff;display:block}
 </style></head>
 <body>
 <header>
@@ -64,20 +83,21 @@ const back=document.getElementById('back'), bottom=document.getElementById('bott
 const progWrap=document.getElementById('progWrap'), ptxt=document.getElementById('ptxt');
 function show(el,on){el.classList.toggle('hide',!on)}
 function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')}
+function escAttr(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;')}
 function home(){
   title.textContent='請選擇機台設定表'; show(back,0);show(bottom,0);show(progWrap,0);show(ptxt,0);
   main.innerHTML='<div class="hint">選擇要核對的機台</div><div class="pick">'+
     Object.keys(MACHINES).map(m=>`<button onclick="openM('${encodeURIComponent(m)}')">${esc(m)}</button>`).join('')+'</div>';
 }
-let totalItems=0;
+let totalItems=0, curM='';
 window.openM=function(enc){
-  const m=decodeURIComponent(enc); const groups=MACHINES[m];
+  const m=decodeURIComponent(enc); const groups=MACHINES[m]; curM=m;
   title.textContent=m+' 設定檢查表'; show(back,1);show(bottom,1);show(progWrap,1);show(ptxt,1);
   totalItems=0;
   let html='';
   groups.forEach(g=>{
     totalItems+=g.items.length;
-    const rows=g.items.map(it=>`<label class="row"><input type="checkbox" class="ick"><span class="k">${esc(it[0])}</span><span class="v">${esc(it[1])}</span></label>`).join('');
+    const rows=g.items.map(it=>`<div class="row"><label class="rowck"><input type="checkbox" class="ick"><span class="k">${esc(it[0])}</span></label><input class="ve" value="${escAttr(it[1])}"></div>`).join('');
     html+=`<div class="card"><div class="chead"><span class="dot"></span><span class="nm">${esc(g.group)}</span><span class="cnt"><b class="gc">0</b>/${g.items.length}</span><span class="chev">▶</span></div><div class="cbody">${rows}</div></div>`;
   });
   // 通用區塊
@@ -97,6 +117,7 @@ window.openM=function(enc){
   document.querySelectorAll('.card').forEach(c=>{
     c.querySelector('.chead').addEventListener('click',()=>c.classList.toggle('open'));
     c.querySelectorAll('.ick').forEach(cb=>cb.addEventListener('change',()=>{
+      cb.closest('.row').classList.toggle('done-v',cb.checked);
       const bx=c.querySelectorAll('.ick'),d=[...bx].filter(b=>b.checked).length;
       c.querySelector('.gc').textContent=d; c.classList.toggle('done',d===bx.length); prog();
     }));
@@ -116,19 +137,58 @@ function initSig(){const c=document.getElementById('sig');const r=c.getBoundingC
  c.onpointermove=e=>{if(!drawing)return;const[x,y]=pos(e);ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(x,y);ctx.stroke();[px,py]=[x,y];e.preventDefault()};
  window.onpointerup=()=>drawing=0;}
 window.clearSig=function(){const c=document.getElementById('sig');ctx.clearRect(0,0,c.width,c.height)}
+// 依現況組出「白底黑框表格」(比照原本檢查表)
+function buildPrint(){
+  const gv=id=>{const el=document.getElementById(id);return el?el.value:''};
+  const type=(document.querySelector('#siteType button.on')||{}).dataset ? (document.querySelector('#siteType button.on').dataset.v||'') : '';
+  const d=new Date(), ds=d.getFullYear()+'/'+(d.getMonth()+1)+'/'+d.getDate();
+  let h=`<h2>${esc(curM)} 設定檢查表</h2>`;
+  h+=`<table class="meta">
+   <tr><td class="lbl">改版店家</td><td>${esc(gv('f_store'))}</td><td class="lbl">改版人員</td><td>${esc(gv('f_staff'))}</td><td class="lbl">日期</td><td>${ds}</td></tr>
+   <tr><td class="lbl">SN 序號</td><td>${esc(gv('f_sn'))}</td><td class="lbl">AN 資產編號</td><td>${esc(gv('f_an'))}</td><td class="lbl">現場設定值</td><td>${esc(type)}</td></tr>
+   <tr><td class="lbl">Location</td><td colspan="5">${esc(gv('f_loc'))}</td></tr></table>`;
+  h+=`<table class="grid"><tr><th class="ck">✓</th><th>群組 Group</th><th>項目 Item</th><th>設定值 Value</th></tr>`;
+  [...document.querySelectorAll('#sheet .card')].forEach(card=>{
+    const gname=card.querySelector('.nm').textContent.replace(/^✓\s*/,'');
+    const rows=[...card.querySelectorAll('.row')];
+    rows.forEach((r,ri)=>{
+      const item=r.querySelector('.k').textContent;
+      const val=r.querySelector('.ve').value;
+      const ck=r.querySelector('.ick').checked?'✔':'';
+      h+='<tr><td class="ck">'+ck+'</td>'+(ri===0?`<td class="gp" rowspan="${rows.length}">${esc(gname)}</td>`:'')+`<td>${esc(item)}</td><td class="vv">${esc(val)}</td></tr>`;
+    });
+  });
+  h+=`</table>`;
+  const block=(id,tt)=>{const its=[...document.querySelectorAll('#'+id+' .toggle')];if(!its.length)return'';
+    let s=`<table class="grid" style="margin-top:10px"><tr><th class="ck">✓</th><th colspan="3">${tt}</th></tr>`;
+    its.forEach(t=>{s+=`<tr><td class="ck">${t.querySelector('input').checked?'✔':''}</td><td colspan="3">${esc(t.querySelector('span').textContent)}</td></tr>`});
+    return s+'</table>';};
+  h+=block('confirmCol','確認欄')+block('preLaunch','機台上線前確認');
+  const note=gv('f_note');
+  if(note) h+=`<table class="grid" style="margin-top:10px"><tr><th>備註</th></tr><tr><td class="vv" style="text-align:left">${esc(note).replace(/\n/g,'<br>')}</td></tr></table>`;
+  const wrap=document.createElement('div');wrap.className='psheet';wrap.innerHTML=h;
+  const sc=document.getElementById('sig');
+  const sig=document.createElement('div');sig.className='sig';
+  sig.innerHTML='<div style="font-weight:700;margin-bottom:4px">主管簽名</div>';
+  const img=document.createElement('img');img.src=sc.toDataURL('image/png');sig.appendChild(img);
+  wrap.appendChild(sig);
+  return wrap;
+}
 // 存成圖片
 document.getElementById('save').addEventListener('click',async()=>{
-  const node=document.getElementById('sheet'); if(!node)return;
+  if(!document.getElementById('sheet'))return;
   const btn=document.getElementById('save');btn.textContent='產生圖片中…';
+  const node=buildPrint(); document.body.appendChild(node);
   try{
-    const canvas=await html2canvas(node,{backgroundColor:'#0f172a',scale:2,useCORS:true});
-    const name=(title.textContent||'檢查表').replace(/\s+/g,'_');
+    const canvas=await html2canvas(node,{backgroundColor:'#fff',scale:2,useCORS:true});
+    const name=(curM+'_設定檢查表').replace(/\s+/g,'_');
     await new Promise(res=>canvas.toBlob(async b=>{
       const file=new File([b],name+'.png',{type:'image/png'});
       if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:name});res();return}catch(e){}}
       const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name+'.png';a.click();res();
     },'image/png'));
   }catch(e){alert('產生圖片失敗:'+e)}
+  node.remove();
   btn.textContent='📷 存成圖片到相簿';
 });
 home();
