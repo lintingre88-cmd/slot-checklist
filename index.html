@@ -90,8 +90,10 @@ function home(){
     Object.keys(MACHINES).map(m=>`<button onclick="openM('${encodeURIComponent(m)}')">${esc(m)}</button>`).join('')+'</div>';
 }
 let totalItems=0, curM='';
+let machineInfo={};  // 最近一次 Location 查詢帶回的 {store, seat, ...},供匯出表格拆欄用
 window.openM=function(enc){
   const m=decodeURIComponent(enc); const groups=MACHINES[m]; curM=m;
+  machineInfo={};
   title.textContent=m+' 設定檢查表'; show(back,1);show(bottom,1);show(progWrap,1);show(ptxt,1);
   totalItems=0;
   let html='';
@@ -105,8 +107,7 @@ window.openM=function(enc){
   html+=`<div class="sec">確認欄</div><div id="confirmCol"></div>`;
   html+=`<div class="sec">機台上線前確認</div><div id="preLaunch"></div>`;
   html+=`<div class="sec">改版資料</div>
-   <label class="fld">改版店家</label><input class="t" id="f_store">
-   <label class="fld">Location（位置）</label><input class="t" id="f_loc">
+   <label class="fld">Location（店家＋座位，如 AM0101）<span id="locHint" style="font-weight:400;font-size:13px"></span></label><input class="t" id="f_loc" autocapitalize="characters" autocomplete="off" placeholder="例：AM0101（自動帶出 AN/SN）">
    <label class="fld">改版人員</label><input class="t" id="f_staff">
    <label class="fld">AN（資產編號）</label><input class="t" id="f_an">
    <label class="fld">SN（序號）</label><input class="t" id="f_sn">
@@ -127,9 +128,50 @@ window.openM=function(enc){
   });
   mk('confirmCol',["機台是否有貼商檢","主板是否有貼軟貼"]); mk('preLaunch',PRE);
   document.querySelectorAll('#siteType button').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('#siteType button').forEach(x=>x.classList.remove('on'));b.classList.add('on')}));
+  document.getElementById('f_loc').addEventListener('change',lookupMachine);
   initSig(); prog(); window.scrollTo(0,0);
 };
 function mk(id,arr){document.getElementById(id).innerHTML=arr.map(t=>`<div class="toggle"><span>${esc(t)}</span><label class="sw"><input type="checkbox" checked><span></span></label></div>`).join('')}
+// 打完 Location 跳開 → 向維修單伺服器即時查機台總表 → 帶入 AN(資產編號)/SN(序號)
+const LOOKUP_URL='https://purity-spiffy-phrase.ngrok-free.dev/machine-lookup';
+// 把檢查表內「列名含 Asset → 填 AN、含 Serial → 填 SN」的列帶入(值為空時不覆蓋,保留原提示字)
+function fillItemRows(assetNo,serialNo){
+  document.querySelectorAll('#sheet .row').forEach(row=>{
+    const kEl=row.querySelector('.k'),ve=row.querySelector('.ve');
+    if(!kEl||!ve)return;
+    const lab=kEl.textContent.toLowerCase();
+    if(lab.includes('asset')&&assetNo){ve.value=assetNo;row.classList.add('done-v');}
+    else if(lab.includes('serial')&&serialNo){ve.value=serialNo;row.classList.add('done-v');}
+  });
+}
+async function lookupMachine(){
+  const loc=(document.getElementById('f_loc').value||'').trim().toUpperCase();
+  const hint=document.getElementById('locHint');
+  const an=document.getElementById('f_an'),sn=document.getElementById('f_sn');
+  if(!loc){hint.textContent='';machineInfo={};return;}
+  hint.style.color='#94a3b8';hint.textContent=' 查詢中…';
+  try{
+    const r=await fetch(LOOKUP_URL+'?loc='+encodeURIComponent(loc),{headers:{'ngrok-skip-browser-warning':'true'}});
+    const m=await r.json();
+    if(m&&m.found){
+      // 座位號 = 完整 Location 去掉店家前綴(用 Ragic 回傳的店家精準拆,W9 這種含數字的也正確)
+      let seat=loc;
+      if(m.store&&loc.startsWith(m.store.toUpperCase()))seat=loc.slice(m.store.length);
+      machineInfo={store:m.store||'',seat,model:m.model||'',active:!!m.active,found:true};
+      if(m.assetNo)an.value=m.assetNo;
+      if(m.serialNo)sn.value=m.serialNo;
+      fillItemRows(m.assetNo||'',m.serialNo||'');
+      if(m.active){hint.style.color='#22c55e';hint.textContent=' ✓ 已帶入：'+(m.store||'')+' / '+(m.model||'');}
+      else{hint.style.color='#f59e0b';hint.textContent=' ⚠ 已帶入，但此台為「停用」狀態，請確認';}
+    }else{
+      machineInfo={};
+      hint.style.color='#f59e0b';hint.textContent=' 查無此 Location，請手動填寫';
+    }
+  }catch(e){
+    machineInfo={};
+    hint.style.color='#f59e0b';hint.textContent=' 查詢失敗（可手動填 AN/SN）';
+  }
+}
 function prog(){const d=document.querySelectorAll('#sheet .ick:checked').length;document.getElementById('bar').style.width=(totalItems?d/totalItems*100:0)+'%';ptxt.textContent=`已核對 ${d} / ${totalItems} 項`}
 back.addEventListener('click',home);
 // 點進設定值欄位時，自動選取整段（直接打字即覆蓋，免先刪）
@@ -147,11 +189,14 @@ function buildPrint(){
   const gv=id=>{const el=document.getElementById(id);return el?el.value:''};
   const type=(document.querySelector('#siteType button.on')||{}).dataset ? (document.querySelector('#siteType button.on').dataset.v||'') : '';
   const d=new Date(), ds=d.getFullYear()+'/'+(d.getMonth()+1)+'/'+d.getDate();
+  // 匯出時：店家欄=店代號、Location 欄=座位號(由 Location 查詢拆出;查無則整串放 Location)
+  const storeCode=machineInfo.store||'';
+  const seat=machineInfo.seat||gv('f_loc');
   let h=`<h2>${esc(curM)} 設定檢查表</h2>`;
   h+=`<table class="meta">
-   <tr><td class="lbl">改版店家</td><td>${esc(gv('f_store'))}</td><td class="lbl">改版人員</td><td>${esc(gv('f_staff'))}</td><td class="lbl">日期</td><td>${ds}</td></tr>
+   <tr><td class="lbl">店家</td><td>${esc(storeCode)}</td><td class="lbl">Location</td><td>${esc(seat)}</td><td class="lbl">日期</td><td>${ds}</td></tr>
    <tr><td class="lbl">SN 序號</td><td>${esc(gv('f_sn'))}</td><td class="lbl">AN 資產編號</td><td>${esc(gv('f_an'))}</td><td class="lbl">現場設定值</td><td>${esc(type)}</td></tr>
-   <tr><td class="lbl">Location</td><td colspan="5">${esc(gv('f_loc'))}</td></tr></table>`;
+   <tr><td class="lbl">改版人員</td><td colspan="5">${esc(gv('f_staff'))}</td></tr></table>`;
   h+=`<table class="grid"><tr><th class="ck">✓</th><th>群組 Group</th><th>項目 Item</th><th>設定值 Value</th></tr>`;
   [...document.querySelectorAll('#sheet .card')].forEach(card=>{
     const gname=card.querySelector('.nm').textContent.replace(/^✓\s*/,'');
