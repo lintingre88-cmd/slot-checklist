@@ -51,7 +51,7 @@
  .sigbar{display:flex;justify-content:space-between;align-items:center;margin-top:6px;color:var(--sub);font-size:13px}
  .sigbar button{background:none;border:0;color:var(--sub);font-size:14px}
  /* 放大簽名視窗（點簽名框跳出，好簽） */
- .sigmodal{position:fixed;left:0;right:0;top:0;height:100vh;height:100svh;z-index:50;background:rgba(15,23,42,.97);display:none;flex-direction:column;padding:12px;padding-bottom:calc(12px + env(safe-area-inset-bottom))}
+ .sigmodal{position:fixed;left:0;right:0;top:0;height:100vh;height:100svh;z-index:50;background:rgba(15,23,42,.97);display:none;flex-direction:column;padding:12px;padding-top:calc(12px + env(safe-area-inset-top));padding-bottom:calc(76px + env(safe-area-inset-bottom))}
  .sigmodal.show{display:flex}
  .sigmodal .tt{color:var(--txt);text-align:center;font-size:15px;margin:2px 0 8px;flex-shrink:0}
  .sigmodal #sigBig{flex:1;min-height:0;width:100%;background:#fff;border-radius:12px;touch-action:none;display:block}
