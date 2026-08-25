@@ -33,6 +33,7 @@
  .ve{width:46%;flex:0 0 auto;text-align:right;font-weight:600;padding:8px 9px;border:1px solid var(--line);border-radius:8px;background:#0b1220;color:var(--txt);font-size:14px}
  .ve:focus{outline:none;border-color:var(--accent)}
  .row.done-v .ve{border-color:var(--ok);color:var(--ok)}
+ .ve.changed{color:#f87171 !important;border-color:#f87171 !important;font-weight:700}
  .sec{margin:22px 4px 8px;font-size:15px;font-weight:700;color:var(--warn)}
  .toggle{display:flex;align-items:center;justify-content:space-between;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:8px}
  .sw{position:relative;width:52px;height:30px;flex:0 0 auto}.sw input{display:none}
@@ -66,6 +67,7 @@
  .psheet .grid .gp{background:#e9eff6;font-weight:700;white-space:nowrap;color:#34506e}
  .psheet .grid tr:nth-child(even) td.gp{background:#e9eff6}
  .psheet .grid .vv{text-align:right;white-space:pre-wrap;word-break:break-word;font-weight:700;color:#123a63}
+ .psheet .grid .vv.chg{color:#d0021b}
  .psheet .sig{margin-top:18px}
  .psheet .sig img{border:1.5px solid #b6c2ce;border-radius:6px;width:320px;height:auto;background:#fff;display:block}
 </style></head>
@@ -102,7 +104,7 @@ window.openM=function(enc){
   let html='';
   groups.forEach(g=>{
     totalItems+=g.items.length;
-    const rows=g.items.map(it=>`<div class="row done-v"><label class="rowck"><input type="checkbox" class="ick" checked><span class="k">${esc(it[0])}</span></label><input class="ve" value="${escAttr(it[1])}" onfocus="this.select()"></div>`).join('');
+    const rows=g.items.map(it=>`<div class="row done-v"><label class="rowck"><input type="checkbox" class="ick" checked><span class="k">${esc(it[0])}</span></label><input class="ve" data-orig="${escAttr(it[1])}" value="${escAttr(it[1])}" onfocus="this.select()"></div>`).join('');
     html+=`<div class="card"><div class="chead"><span class="dot"></span><span class="nm">${esc(g.group)}</span><span class="cnt"><b class="gc">0</b>/${g.items.length}</span><span class="chev">▶</span></div><div class="cbody">${rows}</div></div>`;
   });
   // 通用區塊
@@ -143,8 +145,8 @@ function fillItemRows(assetNo,serialNo){
     const kEl=row.querySelector('.k'),ve=row.querySelector('.ve');
     if(!kEl||!ve)return;
     const lab=kEl.textContent.toLowerCase();
-    if(lab.includes('asset')&&assetNo){ve.value=assetNo;row.classList.add('done-v');}
-    else if(lab.includes('serial')&&serialNo){ve.value=serialNo;row.classList.add('done-v');}
+    if(lab.includes('asset')&&assetNo){ve.value=assetNo;row.classList.add('done-v');markChanged(ve);}
+    else if(lab.includes('serial')&&serialNo){ve.value=serialNo;row.classList.add('done-v');markChanged(ve);}
   });
 }
 async function lookupMachine(){
@@ -179,6 +181,9 @@ function prog(){const d=document.querySelectorAll('#sheet .ick:checked').length;
 back.addEventListener('click',home);
 // 點進設定值欄位時，自動選取整段（直接打字即覆蓋，免先刪）
 document.addEventListener('focusin',e=>{const t=e.target;if(t&&t.classList&&t.classList.contains('ve')){setTimeout(()=>{try{t.select()}catch(_){}} ,0);}});
+// 設定值被改成跟原值不同 → 標紅色（治本：一處判斷，畫面與匯出都用）
+function markChanged(ve){if(ve&&ve.classList)ve.classList.toggle('changed',ve.value!==(ve.dataset.orig||''));}
+document.addEventListener('input',e=>{const t=e.target;if(t&&t.classList&&t.classList.contains('ve'))markChanged(t);});
 // 簽名
 let ctx,drawing,px,py;
 function initSig(){const c=document.getElementById('sig');const r=c.getBoundingClientRect();c.width=r.width*2;c.height=r.height*2;ctx=c.getContext('2d');ctx.scale(2,2);ctx.lineWidth=2.5;ctx.lineCap='round';ctx.strokeStyle='#111';
@@ -206,9 +211,11 @@ function buildPrint(){
     const rows=[...card.querySelectorAll('.row')];
     rows.forEach((r,ri)=>{
       const item=r.querySelector('.k').textContent;
-      const val=r.querySelector('.ve').value;
+      const ve=r.querySelector('.ve');
+      const val=ve.value;
+      const vClass=(val!==(ve.dataset.orig||''))?'vv chg':'vv';
       const ck=r.querySelector('.ick').checked?'✔':'';
-      h+='<tr><td class="ck">'+ck+'</td>'+(ri===0?`<td class="gp" rowspan="${rows.length}">${esc(gname)}</td>`:'')+`<td>${esc(item)}</td><td class="vv">${esc(val)}</td></tr>`;
+      h+='<tr><td class="ck">'+ck+'</td>'+(ri===0?`<td class="gp" rowspan="${rows.length}">${esc(gname)}</td>`:'')+`<td>${esc(item)}</td><td class="${vClass}">${esc(val)}</td></tr>`;
     });
   });
   h+=`</table>`;
