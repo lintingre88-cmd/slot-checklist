@@ -224,9 +224,15 @@ let bigCtx, bigCanvas, bigW, bigH;
 function initSig(){const c=document.getElementById('sig');const r=c.getBoundingClientRect();c.width=r.width*2;c.height=r.height*2;ctx=c.getContext('2d');ctx.scale(2,2);
  c.onclick=openSigModal;}
 window.clearSig=function(){const c=document.getElementById('sig');ctx.clearRect(0,0,c.width,c.height);sigDataURL='';}
+// 用「真正可見區域」(visualViewport)把視窗高度釘死 → 底部按鈕永遠在摸得到的範圍(不被手機工具列蓋住/擋觸控)
+function fitSigModal(){const m=document.getElementById('sigModal');const vv=window.visualViewport;
+ if(vv){m.style.height=vv.height+'px';m.style.top=vv.offsetTop+'px';}
+ else{m.style.height=window.innerHeight+'px';m.style.top='0px';}}
 // 開啟放大視窗（display 後才量得到尺寸 → 才設定畫布）
 window.openSigModal=function(){
  const m=document.getElementById('sigModal');m.classList.add('show');
+ fitSigModal();                             // 先貼齊可見區域，之後量畫布才準
+ if(window.visualViewport){window.visualViewport.addEventListener('resize',fitSigModal);window.visualViewport.addEventListener('scroll',fitSigModal);}
  history.pushState({v:'sig'},'');           // 簽名視窗納入歷史 → 手機「上一頁」只關視窗
  bigCanvas=document.getElementById('sigBig');
  const r=bigCanvas.getBoundingClientRect();bigW=r.width;bigH=r.height;
@@ -242,7 +248,8 @@ window.openSigModal=function(){
  bigCanvas.onpointermove=e=>{if(!drawing)return;const[x,y]=pos(e);bigCtx.beginPath();bigCtx.moveTo(px,py);bigCtx.lineTo(x,y);bigCtx.stroke();[px,py]=[x,y];e.preventDefault()};
  bigCanvas.onpointerup=bigCanvas.onpointerleave=bigCanvas.onpointercancel=()=>drawing=0;
 };
-window.closeSigModal=function(){document.getElementById('sigModal').classList.remove('show');};
+window.closeSigModal=function(){const m=document.getElementById('sigModal');m.classList.remove('show');m.style.height='';m.style.top='';
+ if(window.visualViewport){window.visualViewport.removeEventListener('resize',fitSigModal);window.visualViewport.removeEventListener('scroll',fitSigModal);}};
 window.cancelSig=function(){history.back();};   // 走瀏覽器返回 → popstate 只關視窗、留在原檢查表
 window.clearBig=function(){if(bigCtx)bigCtx.clearRect(0,0,bigW,bigH);};
 window.confirmSig=function(){
