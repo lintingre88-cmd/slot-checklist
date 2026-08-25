@@ -97,7 +97,7 @@
   <div class="tt">請主管在下方簽名（比手機畫面大，好簽）</div>
   <canvas id="sigBig"></canvas>
   <div class="mbar">
-    <button class="cx" onclick="closeSigModal()">取消</button>
+    <button class="cx" onclick="cancelSig()">取消</button>
     <button class="cl" onclick="clearBig()">🗑 清除</button>
     <button class="ok" onclick="confirmSig()">✓ 完成</button>
   </div>
@@ -119,7 +119,12 @@ function home(){
 let totalItems=0, curM='';
 let machineInfo={};  // 最近一次 Location 查詢帶回的 {store, seat, ...},供匯出表格拆欄用
 window.openM=function(enc){
-  const m=decodeURIComponent(enc); const groups=MACHINES[m]; curM=m;
+  const m=decodeURIComponent(enc);
+  history.pushState({v:'machine',m:m},'');   // 讓手機「上一頁」能回機台選單
+  renderMachine(m);
+};
+function renderMachine(m){
+  const groups=MACHINES[m]; curM=m;
   machineInfo={};
   title.textContent=m+' 設定檢查表'; show(back,1);show(bottom,1);show(progWrap,1);show(ptxt,1);
   totalItems=0;
@@ -207,7 +212,7 @@ async function lookupMachine(){
   }
 }
 function prog(){const d=document.querySelectorAll('#sheet .ick:checked').length;document.getElementById('bar').style.width=(totalItems?d/totalItems*100:0)+'%';ptxt.textContent=`已核對 ${d} / ${totalItems} 項`}
-back.addEventListener('click',home);
+back.addEventListener('click',()=>history.back());
 // 點進設定值欄位時，自動選取整段（直接打字即覆蓋，免先刪）
 document.addEventListener('focusin',e=>{const t=e.target;if(t&&t.classList&&t.classList.contains('ve')){setTimeout(()=>{try{t.select()}catch(_){}} ,0);}});
 // 設定值被改成跟原值不同 → 標紅色（治本：一處判斷，畫面與匯出都用）
@@ -222,6 +227,7 @@ window.clearSig=function(){const c=document.getElementById('sig');ctx.clearRect(
 // 開啟放大視窗（display 後才量得到尺寸 → 才設定畫布）
 window.openSigModal=function(){
  const m=document.getElementById('sigModal');m.classList.add('show');
+ history.pushState({v:'sig'},'');           // 簽名視窗納入歷史 → 手機「上一頁」只關視窗
  bigCanvas=document.getElementById('sigBig');
  const r=bigCanvas.getBoundingClientRect();bigW=r.width;bigH=r.height;
  bigCanvas.width=r.width*2;bigCanvas.height=r.height*2;
@@ -237,6 +243,7 @@ window.openSigModal=function(){
  bigCanvas.onpointerup=bigCanvas.onpointerleave=bigCanvas.onpointercancel=()=>drawing=0;
 };
 window.closeSigModal=function(){document.getElementById('sigModal').classList.remove('show');};
+window.cancelSig=function(){history.back();};   // 走瀏覽器返回 → popstate 只關視窗、留在原檢查表
 window.clearBig=function(){if(bigCtx)bigCtx.clearRect(0,0,bigW,bigH);};
 window.confirmSig=function(){
  sigDataURL=bigCanvas.toDataURL('image/png');   // 全解析度，匯出用（等比例、不變形）
@@ -245,7 +252,7 @@ window.confirmSig=function(){
  ctx.clearRect(0,0,rr.width,rr.height);
  const s=Math.min(rr.width/bigW,rr.height/bigH),dw=bigW*s,dh=bigH*s;
  ctx.drawImage(bigCanvas,(rr.width-dw)/2,(rr.height-dh)/2,dw,dh);
- closeSigModal();
+ history.back();   // 關視窗（popstate 處理），簽名已存於 sigDataURL/小框
 };
 // 依現況組出「白底黑框表格」(比照原本檢查表)
 function buildPrint(){
@@ -306,6 +313,17 @@ document.getElementById('save').addEventListener('click',async()=>{
   node.remove();
   btn.textContent='📷 存成圖片到相簿';
 });
+history.replaceState({v:'menu'},'');   // 標記目前為機台選單頁（歷史基底）
 home();
+// 手機「上一頁」/返回鍵：依歷史層級決定回到哪裡（治本，取代原本無歷史的單頁行為）
+window.addEventListener('popstate',function(e){
+  const st=e.state||{v:'menu'};
+  const modal=document.getElementById('sigModal');
+  const wasModal=modal.classList.contains('show');
+  if(wasModal) closeSigModal();                   // 簽名視窗開著時，任何「上一頁」只關視窗
+  if(wasModal && st.v==='machine') return;         // 關掉視窗後留在原檢查表，不重繪（保留已填內容）
+  if(st.v==='machine' && st.m){ renderMachine(st.m); return; }
+  home();                                          // 回機台選單
+});
 </script>
 </body></html>
