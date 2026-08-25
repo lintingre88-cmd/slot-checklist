@@ -221,6 +221,23 @@ document.addEventListener('input',e=>{const t=e.target;if(t&&t.classList&&t.clas
 // 簽名：小框只當預覽，點一下跳出「放大視窗」好簽；完成後縮回小框，並存全解析度供匯出
 let ctx, sigDataURL='';           // 小預覽 context；sigDataURL=實際簽名（全解析度，匯出用）
 let bigCtx, bigCanvas, bigW, bigH;
+let sigDrawing=0, sigPx, sigPy, bigBound=false;
+// 大畫布的「畫圖」事件只綁一次（元素是靜態的）；用 touch 事件 + passive:false 明確擋掉頁面滑動（Pointer Events 在部分手機/內建瀏覽器擋不住 → 畫的時候整頁在動）
+function bindBigDraw(){
+ if(bigBound)return; bigBound=true;
+ const c=document.getElementById('sigBig');
+ const pos=(cx,cy)=>{const b=c.getBoundingClientRect();return[cx-b.left,cy-b.top]};
+ const start=(cx,cy)=>{if(!bigCtx)return;sigDrawing=1;[sigPx,sigPy]=pos(cx,cy);};
+ const move=(cx,cy)=>{if(!sigDrawing||!bigCtx)return;const[x,y]=pos(cx,cy);bigCtx.beginPath();bigCtx.moveTo(sigPx,sigPy);bigCtx.lineTo(x,y);bigCtx.stroke();[sigPx,sigPy]=[x,y];};
+ const end=()=>{sigDrawing=0;};
+ c.onmousedown=e=>start(e.clientX,e.clientY);
+ c.onmousemove=e=>move(e.clientX,e.clientY);
+ c.onmouseup=c.onmouseleave=end;
+ c.addEventListener('touchstart',e=>{e.preventDefault();const t=e.touches[0];start(t.clientX,t.clientY);},{passive:false});
+ c.addEventListener('touchmove',e=>{e.preventDefault();const t=e.touches[0];move(t.clientX,t.clientY);},{passive:false});
+ c.addEventListener('touchend',e=>{e.preventDefault();end();},{passive:false});
+ c.addEventListener('touchcancel',end);
+}
 function initSig(){const c=document.getElementById('sig');const r=c.getBoundingClientRect();c.width=r.width*2;c.height=r.height*2;ctx=c.getContext('2d');ctx.scale(2,2);
  c.onclick=openSigModal;}
 window.clearSig=function(){const c=document.getElementById('sig');ctx.clearRect(0,0,c.width,c.height);sigDataURL='';}
@@ -251,6 +268,7 @@ function exitFsSig(){try{if(document.fullscreenElement||document.webkitFullscree
 window.openSigModal=function(){
  const m=document.getElementById('sigModal');m.classList.add('show');
  enterFsSig(m);                             // 要求真全螢幕（由點擊手勢觸發，允許）；不支援則無害略過
+ document.body.style.overflow='hidden';     // 鎖住背景捲動，簽名時不會不小心滑到頁面
  fitSigModal();                             // 一次性貼齊(不掛監聽)，之後量畫布才準
  window.addEventListener('resize',refitBigCanvas);window.addEventListener('orientationchange',refitBigLater);
  history.pushState({v:'sig'},'');           // 簽名視窗納入歷史 → 手機「上一頁」只關視窗
@@ -262,13 +280,10 @@ window.openSigModal=function(){
  bigCtx.clearRect(0,0,bigW,bigH);
  // 帶入既有簽名（等比置中），可續簽
  if(sigDataURL){const im=new Image();im.onload=()=>{const s=Math.min(bigW/(im.width/2),bigH/(im.height/2));const dw=(im.width/2)*s,dh=(im.height/2)*s;bigCtx.drawImage(im,(bigW-dw)/2,(bigH-dh)/2,dw,dh);};im.src=sigDataURL;}
- let drawing=0,px,py;
- const pos=e=>{const b=bigCanvas.getBoundingClientRect();const t=e.touches?e.touches[0]:e;return[t.clientX-b.left,t.clientY-b.top]};
- bigCanvas.onpointerdown=e=>{drawing=1;[px,py]=pos(e);e.preventDefault()};
- bigCanvas.onpointermove=e=>{if(!drawing)return;const[x,y]=pos(e);bigCtx.beginPath();bigCtx.moveTo(px,py);bigCtx.lineTo(x,y);bigCtx.stroke();[px,py]=[x,y];e.preventDefault()};
- bigCanvas.onpointerup=bigCanvas.onpointerleave=bigCanvas.onpointercancel=()=>drawing=0;
+ bindBigDraw();                             // 綁定畫圖事件（只綁一次）
 };
 window.closeSigModal=function(){const m=document.getElementById('sigModal');m.classList.remove('show');m.style.height='';m.style.top='';
+ document.body.style.overflow='';           // 還原背景捲動
  exitFsSig();                               // 退出全螢幕（若有進入）
  window.removeEventListener('resize',refitBigCanvas);window.removeEventListener('orientationchange',refitBigLater);};
 window.cancelSig=function(){history.back();};   // 走瀏覽器返回 → popstate 只關視窗、留在原檢查表
