@@ -87,8 +87,10 @@
  .psheet .grid tr:nth-child(even) td.gp{background:#e9eff6}
  .psheet .grid .vv{text-align:right;white-space:pre-wrap;word-break:break-word;font-weight:700;color:#123a63}
  .psheet .grid .vv.chg{color:#d0021b}
- .psheet .sig{margin-top:18px}
- .psheet .sig img{border:1.5px solid #b6c2ce;border-radius:6px;max-width:340px;max-height:180px;width:auto;height:auto;background:#fff;display:block}
+ .psheet .sig{margin-top:16px;border:1.5px solid #b6c2ce}
+ .psheet .sighd{background:#34506e;color:#fff;font-weight:700;letter-spacing:1px;padding:7px 11px;font-size:13px}
+ .psheet .sigbox{padding:14px;background:#fff;min-height:210px;display:flex;align-items:center;justify-content:center}
+ .psheet .sig img{max-width:100%;max-height:300px;width:auto;height:auto;background:#fff;display:block;margin:0 auto}
 </style></head>
 <body>
 <header>
@@ -369,9 +371,11 @@ function buildPrint(){
   if(note) h+=`<table class="grid" style="margin-top:10px"><tr><th>備註</th></tr><tr><td class="vv" style="text-align:left">${esc(note).replace(/\n/g,'<br>')}</td></tr></table>`;
   const wrap=document.createElement('div');wrap.className='psheet';wrap.innerHTML=h;
   const sig=document.createElement('div');sig.className='sig';
-  sig.innerHTML='<div style="font-weight:800;margin-bottom:6px;color:#34506e;font-size:15px">主管簽名</div>';
+  sig.innerHTML='<div class="sighd">主管簽名</div>';
+  const box=document.createElement('div');box.className='sigbox';
   // 用放大視窗簽的全解析度簽名（等比例、不變形）；沒簽過則退回小預覽框內容
-  const img=document.createElement('img');img.src=sigDataURL||document.getElementById('sig').toDataURL('image/png');sig.appendChild(img);
+  const img=document.createElement('img');img.src=sigDataURL||document.getElementById('sig').toDataURL('image/png');box.appendChild(img);
+  sig.appendChild(box);
   wrap.appendChild(sig);
   return wrap;
 }
