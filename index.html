@@ -47,6 +47,12 @@
  .seg button.on{border-color:var(--accent);background:rgba(99,102,241,.2)}
  label.fld{display:block;margin:10px 0 4px;font-size:14px;color:var(--sub)}
  input.t,textarea.t{width:100%;padding:13px;border-radius:12px;border:1px solid var(--line);background:#0b1220;color:var(--txt);font-size:16px}textarea.t{min-height:64px}
+ .mcadd{background:#065f46;border:1px solid #10b981;color:#d1fae5;padding:5px 12px;border-radius:99px;font-size:13px;font-weight:700;margin-left:8px}
+ .mcrow{border:1px solid var(--line);border-radius:12px;padding:10px 12px 12px;margin:10px 0;background:#0b1220}
+ .mcrow-hd{display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:14px;color:var(--txt);margin-bottom:2px}
+ .mcdel{background:#7f1d1d;border:0;color:#fecaca;width:28px;height:28px;border-radius:8px;font-size:15px;font-weight:700}
+ .mcrow .locHint{font-weight:400;font-size:13px}
+ .mc2{display:flex;gap:8px}.mc2>div{flex:1}
  #sig{width:100%;height:170px;background:#fff;border-radius:12px;touch-action:none;display:block;cursor:pointer}
  .sigbar{display:flex;justify-content:space-between;align-items:center;margin-top:6px;color:var(--sub);font-size:13px}
  .sigbar button{background:none;border:0;color:var(--sub);font-size:14px}
@@ -138,11 +144,10 @@ function renderMachine(m){
   html+=`<div class="sec">現場設定值</div><div class="seg" id="siteType"><button data-v="一般" class="on">一般</button><button data-v="VIP">VIP</button></div>`;
   html+=`<div class="sec">確認欄</div><div id="confirmCol"></div>`;
   html+=`<div class="sec">機台上線前確認</div><div id="preLaunch"></div>`;
-  html+=`<div class="sec">改版資料</div>
-   <label class="fld">Location（店家＋座位，如 AM0101）<span id="locHint" style="font-weight:400;font-size:13px"></span></label><input class="t" id="f_loc" autocapitalize="characters" autocomplete="off" placeholder="例：AM0101（自動帶出 AN/SN）">
+  html+=`<div class="sec">改版機台 <button type="button" id="addMachine" class="mcadd">＋ 新增機台</button></div>
+   <div id="machineList"></div>
+   <div class="sec">改版資料</div>
    <label class="fld">改版人員</label><input class="t" id="f_staff">
-   <label class="fld">AN（資產編號）</label><input class="t" id="f_an">
-   <label class="fld">SN（序號）</label><input class="t" id="f_sn">
    <label class="fld">備註</label><textarea class="t" id="f_note"></textarea>`;
   html+=`<div class="sec">主管簽名</div><canvas id="sig"></canvas><div class="sigbar"><span>👆 點簽名框可放大簽名</span><button onclick="clearSig()">🗑 清除重簽</button></div>`;
   main.innerHTML='<div id="sheet">'+html+'</div>';
@@ -167,7 +172,7 @@ function renderMachine(m){
   });
   mk('confirmCol',["機台是否有貼商檢","主板是否有貼軟貼"]); mk('preLaunch',PRE);
   document.querySelectorAll('#siteType button').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('#siteType button').forEach(x=>x.classList.remove('on'));b.classList.add('on')}));
-  document.getElementById('f_loc').addEventListener('change',lookupMachine);
+  initMachineList();
   initSig(); prog(); window.scrollTo(0,0);
 };
 function mk(id,arr){document.getElementById(id).innerHTML=arr.map(t=>`<div class="toggle"><span>${esc(t)}</span><label class="sw"><input type="checkbox" checked><span></span></label></div>`).join('')}
@@ -183,33 +188,64 @@ function fillItemRows(assetNo,serialNo){
     else if(lab.includes('serial')&&serialNo){ve.value=serialNo;row.classList.add('done-v');markChanged(ve);}
   });
 }
-async function lookupMachine(){
-  const loc=(document.getElementById('f_loc').value||'').trim().toUpperCase();
-  const hint=document.getElementById('locHint');
-  const an=document.getElementById('f_an'),sn=document.getElementById('f_sn');
-  if(!loc){hint.textContent='';machineInfo={};return;}
+// ===== 改版機台（多台，同機型共用一張表）=====
+let mcSeq=0;
+function initMachineList(){
+  document.getElementById('addMachine').addEventListener('click',()=>addMachineRow());
+  document.getElementById('machineList').innerHTML='';
+  addMachineRow();                         // 預設 1 台
+}
+function machineCount(){return document.querySelectorAll('#machineList .mcrow').length;}
+function renumberMachines(){
+  const rows=[...document.querySelectorAll('#machineList .mcrow')];
+  rows.forEach((row,i)=>{row.querySelector('.mcnum').textContent='機台 '+(i+1);
+    row.querySelector('.mcdel').style.display=rows.length>1?'':'none';});   // 只剩一台時不顯示刪除
+}
+function addMachineRow(){
+  const id=++mcSeq;
+  const row=document.createElement('div');row.className='mcrow';row._info={};
+  row.innerHTML=`<div class="mcrow-hd"><span class="mcnum">機台</span><button type="button" class="mcdel">✕</button></div>
+   <label class="fld">Location（店家＋座位，如 AM0101）<span class="locHint"></span></label>
+   <input class="t mc-loc" autocapitalize="characters" autocomplete="off" placeholder="例：AM0101（自動帶出 AN/SN）">
+   <div class="mc2"><div><label class="fld">AN（資產編號）</label><input class="t mc-an"></div>
+   <div><label class="fld">SN（序號）</label><input class="t mc-sn"></div></div>`;
+  document.getElementById('machineList').appendChild(row);
+  row.querySelector('.mc-loc').addEventListener('change',()=>mcLookup(row));
+  row.querySelector('.mcdel').addEventListener('click',()=>{
+    if(machineCount()<=1)return; row.remove(); renumberMachines();
+  });
+  renumberMachines();
+  return row;
+}
+async function mcLookup(row){
+  const locEl=row.querySelector('.mc-loc'),hint=row.querySelector('.locHint');
+  const an=row.querySelector('.mc-an'),sn=row.querySelector('.mc-sn');
+  const loc=(locEl.value||'').trim().toUpperCase(); locEl.value=loc;
+  if(!loc){hint.textContent='';row._info={};return;}
   hint.style.color='#94a3b8';hint.textContent=' 查詢中…';
   try{
     const r=await fetch(LOOKUP_URL+'?loc='+encodeURIComponent(loc),{headers:{'ngrok-skip-browser-warning':'true'}});
     const m=await r.json();
     if(m&&m.found){
-      // 座位號 = 完整 Location 去掉店家前綴(用 Ragic 回傳的店家精準拆,W9 這種含數字的也正確)
-      let seat=loc;
-      if(m.store&&loc.startsWith(m.store.toUpperCase()))seat=loc.slice(m.store.length);
-      machineInfo={store:m.store||'',seat,model:m.model||'',active:!!m.active,found:true};
+      let seat=loc; if(m.store&&loc.startsWith(m.store.toUpperCase()))seat=loc.slice(m.store.length);
+      row._info={store:m.store||'',seat,model:m.model||'',active:!!m.active,found:true};
       if(m.assetNo)an.value=m.assetNo;
       if(m.serialNo)sn.value=m.serialNo;
-      fillItemRows(m.assetNo||'',m.serialNo||'');
+      // 只有「單台」時才把 AN/SN 帶進檢查表項目列；多台則留原提示字（各台看下方機台表）
+      if(machineCount()===1)fillItemRows(m.assetNo||'',m.serialNo||'');
       if(m.active){hint.style.color='#22c55e';hint.textContent=' ✓ 已帶入：'+(m.store||'')+' / '+(m.model||'');}
       else{hint.style.color='#f59e0b';hint.textContent=' ⚠ 已帶入，但此台為「停用」狀態，請確認';}
-    }else{
-      machineInfo={};
-      hint.style.color='#f59e0b';hint.textContent=' 查無此 Location，請手動填寫';
-    }
-  }catch(e){
-    machineInfo={};
-    hint.style.color='#f59e0b';hint.textContent=' 查詢失敗（可手動填 AN/SN）';
-  }
+    }else{row._info={};hint.style.color='#f59e0b';hint.textContent=' 查無此 Location，請手動填寫';}
+  }catch(e){row._info={};hint.style.color='#f59e0b';hint.textContent=' 查詢失敗（可手動填 AN/SN）';}
+}
+// 收集所有機台（匯出用）
+function collectMachines(){
+  return [...document.querySelectorAll('#machineList .mcrow')].map(row=>{
+    const loc=(row.querySelector('.mc-loc').value||'').trim();
+    const info=row._info||{};
+    return {loc,an:(row.querySelector('.mc-an').value||'').trim(),sn:(row.querySelector('.mc-sn').value||'').trim(),
+      store:info.store||'',seat:info.seat||loc};
+  });
 }
 function prog(){const d=document.querySelectorAll('#sheet .ick:checked').length;document.getElementById('bar').style.width=(totalItems?d/totalItems*100:0)+'%';ptxt.textContent=`已核對 ${d} / ${totalItems} 項`}
 back.addEventListener('click',()=>history.back());
@@ -302,14 +338,14 @@ function buildPrint(){
   const gv=id=>{const el=document.getElementById(id);return el?el.value:''};
   const type=(document.querySelector('#siteType button.on')||{}).dataset ? (document.querySelector('#siteType button.on').dataset.v||'') : '';
   const d=new Date(), ds=d.getFullYear()+'/'+(d.getMonth()+1)+'/'+d.getDate();
-  // 匯出時：店家欄=店代號、Location 欄=座位號(由 Location 查詢拆出;查無則整串放 Location)
-  const storeCode=machineInfo.store||'';
-  const seat=machineInfo.seat||gv('f_loc');
+  const machines=collectMachines();
   let h=`<h2>${esc(curM)} 設定檢查表</h2>`;
   h+=`<table class="meta">
-   <tr><td class="lbl">店家</td><td>${esc(storeCode)}</td><td class="lbl">Location</td><td>${esc(seat)}</td><td class="lbl">日期</td><td>${ds}</td></tr>
-   <tr><td class="lbl">SN 序號</td><td>${esc(gv('f_sn'))}</td><td class="lbl">AN 資產編號</td><td>${esc(gv('f_an'))}</td><td class="lbl">現場設定值</td><td>${esc(type)}</td></tr>
-   <tr><td class="lbl">改版人員</td><td colspan="5">${esc(gv('f_staff'))}</td></tr></table>`;
+   <tr><td class="lbl">日期</td><td>${ds}</td><td class="lbl">現場設定值</td><td>${esc(type)}</td><td class="lbl">改版人員</td><td>${esc(gv('f_staff'))}</td></tr></table>`;
+  // 改版機台清單（同機型多台共用一張表）
+  h+=`<table class="grid" style="margin-top:8px"><tr><th>店家</th><th>Location</th><th>AN 資產編號</th><th>SN 序號</th></tr>`;
+  machines.forEach(mc=>{h+=`<tr><td class="vv">${esc(mc.store)}</td><td class="vv">${esc(mc.seat)}</td><td class="vv">${esc(mc.an)}</td><td class="vv">${esc(mc.sn)}</td></tr>`;});
+  h+=`</table>`;
   h+=`<table class="grid"><tr><th class="ck">✓</th><th>群組 Group</th><th>項目 Item</th><th>設定值 Value</th></tr>`;
   [...document.querySelectorAll('#sheet .card')].forEach(card=>{
     const gname=card.querySelector('.nm').textContent.replace(/^✓\s*/,'');
