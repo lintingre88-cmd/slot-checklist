@@ -229,10 +229,26 @@ window.clearSig=function(){const c=document.getElementById('sig');ctx.clearRect(
 function fitSigModal(){const m=document.getElementById('sigModal');
  if(window.CSS&&CSS.supports&&CSS.supports('height','100svh')){m.style.height='';m.style.top='';return;}
  const vv=window.visualViewport;m.style.height=(vv?vv.height:window.innerHeight)+'px';m.style.top=(vv?vv.offsetTop:0)+'px';}
+// 螢幕旋轉/尺寸改變時：把大畫布內部解析度重設成新尺寸，並把已簽筆跡等比重繪回去（否則畫布座標系停在舊方向 → 簽名位置偏移）
+function refitBigCanvas(){
+ const m=document.getElementById('sigModal');
+ if(!bigCanvas||!m.classList.contains('show'))return;
+ const r=bigCanvas.getBoundingClientRect();
+ if(Math.abs(r.width-bigW)<2&&Math.abs(r.height-bigH)<2)return;   // 尺寸沒實質變化就不動（避免無謂重繪）
+ const prev=bigCanvas.toDataURL('image/png');                     // 先保存目前筆跡
+ bigW=r.width;bigH=r.height;
+ bigCanvas.width=r.width*2;bigCanvas.height=r.height*2;
+ bigCtx=bigCanvas.getContext('2d');bigCtx.setTransform(1,0,0,1,0,0);bigCtx.scale(2,2);
+ bigCtx.lineWidth=3;bigCtx.lineCap='round';bigCtx.lineJoin='round';bigCtx.strokeStyle='#111';
+ bigCtx.clearRect(0,0,bigW,bigH);
+ const im=new Image();im.onload=()=>{const s=Math.min(bigW/(im.width/2),bigH/(im.height/2));const dw=(im.width/2)*s,dh=(im.height/2)*s;bigCtx.drawImage(im,(bigW-dw)/2,(bigH-dh)/2,dw,dh);};im.src=prev;
+}
+function refitBigLater(){setTimeout(refitBigCanvas,250);}   // 旋轉事件常在版面更新前觸發，延遲再量才準
 // 開啟放大視窗（display 後才量得到尺寸 → 才設定畫布）
 window.openSigModal=function(){
  const m=document.getElementById('sigModal');m.classList.add('show');
  fitSigModal();                             // 一次性貼齊(不掛監聽)，之後量畫布才準
+ window.addEventListener('resize',refitBigCanvas);window.addEventListener('orientationchange',refitBigLater);
  history.pushState({v:'sig'},'');           // 簽名視窗納入歷史 → 手機「上一頁」只關視窗
  bigCanvas=document.getElementById('sigBig');
  const r=bigCanvas.getBoundingClientRect();bigW=r.width;bigH=r.height;
@@ -248,7 +264,8 @@ window.openSigModal=function(){
  bigCanvas.onpointermove=e=>{if(!drawing)return;const[x,y]=pos(e);bigCtx.beginPath();bigCtx.moveTo(px,py);bigCtx.lineTo(x,y);bigCtx.stroke();[px,py]=[x,y];e.preventDefault()};
  bigCanvas.onpointerup=bigCanvas.onpointerleave=bigCanvas.onpointercancel=()=>drawing=0;
 };
-window.closeSigModal=function(){const m=document.getElementById('sigModal');m.classList.remove('show');m.style.height='';m.style.top='';};
+window.closeSigModal=function(){const m=document.getElementById('sigModal');m.classList.remove('show');m.style.height='';m.style.top='';
+ window.removeEventListener('resize',refitBigCanvas);window.removeEventListener('orientationchange',refitBigLater);};
 window.cancelSig=function(){history.back();};   // 走瀏覽器返回 → popstate 只關視窗、留在原檢查表
 window.clearBig=function(){if(bigCtx)bigCtx.clearRect(0,0,bigW,bigH);};
 window.confirmSig=function(){
