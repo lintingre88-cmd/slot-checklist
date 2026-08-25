@@ -244,9 +244,13 @@ function refitBigCanvas(){
  const im=new Image();im.onload=()=>{const s=Math.min(bigW/(im.width/2),bigH/(im.height/2));const dw=(im.width/2)*s,dh=(im.height/2)*s;bigCtx.drawImage(im,(bigW-dw)/2,(bigH-dh)/2,dw,dh);};im.src=prev;
 }
 function refitBigLater(){setTimeout(refitBigCanvas,250);}   // 旋轉事件常在版面更新前觸發，延遲再量才準
+// 進/出真全螢幕（能用就用，最乾淨；iOS Safari/LINE 不支援時自動略過，退回 svh+安全預留仍可正常用）
+function enterFsSig(m){try{const rq=m.requestFullscreen||m.webkitRequestFullscreen||m.webkitRequestFullScreen;if(rq){const r=rq.call(m);if(r&&r.catch)r.catch(()=>{});}}catch(e){}}
+function exitFsSig(){try{if(document.fullscreenElement||document.webkitFullscreenElement){const ex=document.exitFullscreen||document.webkitExitFullscreen;if(ex){const r=ex.call(document);if(r&&r.catch)r.catch(()=>{});}}}catch(e){}}
 // 開啟放大視窗（display 後才量得到尺寸 → 才設定畫布）
 window.openSigModal=function(){
  const m=document.getElementById('sigModal');m.classList.add('show');
+ enterFsSig(m);                             // 要求真全螢幕（由點擊手勢觸發，允許）；不支援則無害略過
  fitSigModal();                             // 一次性貼齊(不掛監聽)，之後量畫布才準
  window.addEventListener('resize',refitBigCanvas);window.addEventListener('orientationchange',refitBigLater);
  history.pushState({v:'sig'},'');           // 簽名視窗納入歷史 → 手機「上一頁」只關視窗
@@ -265,6 +269,7 @@ window.openSigModal=function(){
  bigCanvas.onpointerup=bigCanvas.onpointerleave=bigCanvas.onpointercancel=()=>drawing=0;
 };
 window.closeSigModal=function(){const m=document.getElementById('sigModal');m.classList.remove('show');m.style.height='';m.style.top='';
+ exitFsSig();                               // 退出全螢幕（若有進入）
  window.removeEventListener('resize',refitBigCanvas);window.removeEventListener('orientationchange',refitBigLater);};
 window.cancelSig=function(){history.back();};   // 走瀏覽器返回 → popstate 只關視窗、留在原檢查表
 window.clearBig=function(){if(bigCtx)bigCtx.clearRect(0,0,bigW,bigH);};
