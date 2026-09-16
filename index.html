@@ -180,12 +180,17 @@ function renderMachine(m){
 function mk(id,arr){document.getElementById(id).innerHTML=arr.map(t=>`<div class="toggle"><span>${esc(t)}</span><label class="sw"><input type="checkbox" checked><span></span></label></div>`).join('')}
 // 打完 Location 跳開 → 向維修單伺服器即時查機台總表 → 帶入 AN(資產編號)/SN(序號)
 const LOOKUP_URL='https://purity-spiffy-phrase.ngrok-free.dev/machine-lookup';
-// 把檢查表內「列名含 Asset → 填 AN、含 Serial → 填 SN」的列帶入(值為空時不覆蓋,保留原提示字)
+// 把檢查表內「列名含 Asset → 填 AN、含 Serial → 填 SN」的列帶入
+// 只有當該列原本是「提示字」(空白或含 依/照/參,如「依照機台設定表」)時才帶入;
+// 若原本就是實際值(如金虎聚寶 Asset No.=520273)則保留、不覆蓋。
 function fillItemRows(assetNo,serialNo){
   document.querySelectorAll('#sheet .row').forEach(row=>{
     const kEl=row.querySelector('.k'),ve=row.querySelector('.ve');
     if(!kEl||!ve)return;
     const lab=kEl.textContent.toLowerCase();
+    const orig=(ve.dataset.orig!==undefined?ve.dataset.orig:ve.value).trim();
+    const isHint=orig===''||/[依照參]/.test(orig);
+    if(!isHint)return; // 原本就是實際設定值,不自動覆蓋
     if(lab.includes('asset')&&assetNo){ve.value=assetNo;row.classList.add('done-v');markChanged(ve);}
     else if(lab.includes('serial')&&serialNo){ve.value=serialNo;row.classList.add('done-v');markChanged(ve);}
   });
