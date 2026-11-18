@@ -1,0 +1,11 @@
+{
+  "name": "slot-checklist",
+  "private": true,
+  "description": "機台設定檢查表手機版的瀏覽器測試（外部 CDN 與查詢 API 都由測試替代，不連外網）",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0"
+  }
+}
