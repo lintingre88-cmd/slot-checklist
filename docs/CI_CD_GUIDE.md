@@ -12,9 +12,13 @@
 
 ## 二、現在有哪些檢查
 
-- **HTML 內嵌 JavaScript 語法檢查**：掃描所有 `.htm` / `.html` 檔案裡的 `<script>` 區塊。
+- **CI**：HTML 內嵌 JavaScript 語法檢查。
+- **Browser Test（瀏覽器自動測試）**：Playwright 三種畫面，測頁面無錯誤、版面不溢出（`tests/checklist.spec.js`）。外部 CDN 與機台查詢 API 用假資料代替。
+- 本機自己跑：`npm install && npx playwright install chromium && npx playwright test`
 
-要看結果：到 GitHub 的這個 repo → 上方 **Actions** 分頁。綠勾是通過，紅叉是失敗。
+要看結果：到 GitHub 的這個 repo → 上方 **Actions** 分頁。綠勾是通過，紅叉是失敗；點進去可下載測試結果檔。
+
+**日常流程**：Claude 開分支、推上去、開 PR → GitHub 自動跑上面的檢查與測試 → Claude 自己讀錯誤紀錄並修正、再跑 → 全綠後交給使用者驗收、合併。
 
 ## 三、怎麼開啟 Claude 自動修正
 
