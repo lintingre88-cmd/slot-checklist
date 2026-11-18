@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  inline-js-syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: HTML 內嵌 JavaScript 語法檢查
+        run: |
+          python3 - <<'PY'
+          import re,glob,subprocess,sys
+          bad=0
+          files=sorted(set(glob.glob('**/*.htm',recursive=True)+glob.glob('**/*.html',recursive=True)))
+          for f in files:
+              src=open(f,encoding='utf-8',errors='replace').read()
+              for i,m in enumerate(re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>',src,re.S|re.I)):
+                  p='/tmp/_chk_%d.js'%i
+                  open(p,'w',encoding='utf-8').write(m)
+                  r=subprocess.run(['node','--check',p],capture_output=True,text=True)
+                  if r.returncode:
+                      print(f'{f} (inline script #{i}):\n{r.stderr[:500]}'); bad+=1
+          print('checked',len(files),'html files; failures:',bad)
+          sys.exit(1 if bad else 0)
+          PY
